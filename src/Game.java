@@ -1,65 +1,100 @@
 import java.awt.*;
-import java.awt.geom.Rectangle2D;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.util.ArrayList;
 
-public class Game {
+public class Game implements Runnable {
 
-    private Display display;
-    private Rectangle rectangle;
+    private GamePanel gamePanel;
+    private GameWindow gameWindow;
+    private Thread gameThread;
+    private ArrayList<Planet> planets;
+    private final int FPS_SET = 120;
+    private final int UPS_SET = 200;
 
-    private Rectangle2D.Double entity1;
-    private Rectangle2D.Double entity2;
+    public Game() {
+        gamePanel = new GamePanel(this);
+        gameWindow = new GameWindow(gamePanel);
+        planets = new ArrayList<>();
+        gamePanel.requestFocus();
 
-    private double gravitationalForce = 0.5d;
+        startGameLoop();
+    }
 
+    private void startGameLoop() {
+        gameThread = new Thread(this);
+        gameThread.start();
+    }
 
-    private double deltaX = 2;
-    private int deltaY = 1;
-    public Game(int width, int height){
-        display = new Display(width, height);
+    @Override
+    public void run() {
+        double timePerFrame = 1000000000.0 / FPS_SET;
+        double timePerUpdate = 1000000000.0 / UPS_SET;
 
-        //make two entities, later on make an entity class
-        entity1 = new Rectangle2D.Double(30, 60, 20, 20);
-        entity2 = new Rectangle2D.Double(display.getWidth()/2, display.getHeight()/2, 5, 5);
+        long previousTime = System.nanoTime();
+
+        int frames = 0;
+        int updates = 0;
+        long lastCheck = System.currentTimeMillis();
+
+        double deltaU = 0;
+        double deltaF = 0;
+
+        while (true) {
+            long currentTime = System.nanoTime();
+
+            deltaU += (currentTime - previousTime) / timePerUpdate;
+            deltaF += (currentTime - previousTime) / timePerFrame;
+            previousTime = currentTime;
+
+            if (deltaU >= 1) {
+                if(!gamePanel.isPaused()) {
+                    update();
+                }
+                updates++;
+                deltaU--;
+            }
+
+            if (deltaF >= 1) {
+                gamePanel.repaint();
+                frames++;
+                deltaF--;
+            }
+
+            if (System.currentTimeMillis() - lastCheck >= 1000) {
+                lastCheck = System.currentTimeMillis();
+                System.out.println("FPS: " + frames + " | UPS: " + updates);
+                frames = 0;
+                updates = 0;
+            }
+        }
+    }
+
+    public void addPlanet(Planet planet) {
+        planets.add(planet);
     }
 
     public void update() {
-        double dx = entity2.getX() - entity1.getX();
-        double dy = entity2.getY() - entity1.getY();
-        double distance = Math.sqrt(dx * dx + dy * dy);
-
-        // Gravitational constant
-        double G = 1000;
-
-        // Apply gravitational force
-        double gravitationalForce = G * ((entity1.getWidth() * entity2.getWidth()) / (distance * distance));
-
-        double moveX = (dx / distance) * gravitationalForce;
-        double moveY = (dy / distance) * gravitationalForce;
-
-        // Move entity1 towards entity2
-        entity1 = new Rectangle2D.Double(entity1.getX() + moveX, entity1.getY() + moveY, 5, 5);
-
-        // Move entity2 towards entity1 (uncomment the line below if needed)
-        // entity2 = new Rectangle2D.Double(entity2.getX() - moveX, entity2.getY() - moveY, 5, 5);
+        for (Planet planet : planets) {
+            planet.update(planets, gamePanel.isPaused());
+        }
     }
 
-
-    public void render(){
-        display.render(this);
+    public void render(Graphics g) {
+        for (Planet planet : planets) {
+            planet.render(g);
+        }
     }
 
-    public Rectangle getRectangle() {
-        return rectangle;
-    }
-
-
-    public Rectangle2D.Double getEntity1() {
-        return entity1;
-    }
-
-    public Rectangle2D.Double getEntity2() {
-        return entity2;
+    public void renderTrajectories(Graphics g) {
+        for (Planet planet : planets) {
+            ArrayList<Point> trajectoryPoints = planet.getTrajectoryPoints();
+            if (trajectoryPoints.size() > 1) {
+                Point prevPoint = trajectoryPoints.get(0);
+                for (int i = 1; i < trajectoryPoints.size(); i++) {
+                    Point currentPoint = trajectoryPoints.get(i);
+                    g.drawLine(prevPoint.x, prevPoint.y, currentPoint.x, currentPoint.y);
+                    prevPoint = currentPoint;
+                }
+            }
+        }
     }
 }
