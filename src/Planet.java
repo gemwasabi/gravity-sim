@@ -45,13 +45,6 @@ public class Planet {
         trajectoryPoints.add(new Point((int) x, (int) y));
     }
 
-    private double calculateDistance(Planet p1, Planet p2) {
-        double deltaX = p2.getX() - p1.getX();
-        double deltaY = p2.getY() - p1.getY();
-
-        return Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2));
-    }
-
     private void moveTowards(Planet target) {
         double deltaX = target.x - this.x;
         double deltaY = target.y - this.y;
